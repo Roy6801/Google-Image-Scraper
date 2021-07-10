@@ -14,23 +14,22 @@ class Scraper:
         self.ctr = 0
         self.url = "https://www.google.com/search?{}&source=lnms&tbm=isch&sa=X&ved=2ahUKEwjR5qK3rcbxAhXYF3IKHYiBDf8Q_AUoAXoECAEQAw&biw=1291&bih=590"        
     
-    def fetch(self, query, count=50, tCount=1, quality=True, downloadImages=False, saveList=False):
+    def fetch(self, query, count=50, tCount=1, quality=True, downloadImages=False, saveList=False, defaultDir=False):
         
         def createDir():
             root = Tk()
             root.withdraw()
             root.attributes("-topmost", True)
-            directory = askdirectory(parent=root)
-            
-            if directory is not None:
-                if len(directory) == 0:
-                    print("No Directory Selected... Creating Default Directory!")
-                    directory = os.getcwd() + "\\GIS Downloads\\" + query
-                else:
+
+            if not defaultDir:
+                directory = askdirectory(parent=root)
+                if directory is not None and len(directory) != 0:
                     directory = directory + "\\GIS Downloads\\" + query
                     directory.replace("/", "\\")
+                else:
+                    print("No Directory Selected... Creating Default Directory!")
+                    directory = os.getcwd() + "\\GIS Downloads\\" + query
             else:
-                print("No Directory Selected... Creating Default Directory!")
                 directory = os.getcwd() + "\\GIS Downloads\\" + query
             
             os.makedirs(directory, exist_ok=True)
@@ -110,9 +109,9 @@ class Scraper:
             while True:
                 cnt += 1
                 if len(self.images) >= count:break
-                driver.execute_script("window.scrollBy(0, {});".format(y))
+                driver.execute_script(f"window.scrollBy(0, {y});")
                 element = driver.find_element_by_id("islmp")
-                anchors = element.find_elements_by_css_selector("#islrg > div.islrc > div:nth-child({}) > a.wXeWr.islib.nfEiy".format(cnt))
+                anchors = element.find_elements_by_css_selector(f"#islrg > div.islrc > div:nth-child({cnt}) > a.wXeWr.islib.nfEiy")
                 for anchor in anchors:
                     ActionChains(driver).click(anchor).perform()
                     time.sleep(1.0)
@@ -146,7 +145,7 @@ class Scraper:
 
             while True:
                 if len(self.images) >= count:break
-                driver.execute_script("window.scrollBy(0, {});".format(y))
+                driver.execute_script(f"window.scrollBy(0, {y});")
                 imgs = driver.find_elements_by_class_name("rg_i")
                 for img in imgs:
                     src = img.get_attribute("src")
@@ -173,7 +172,7 @@ class Scraper:
         
         for index in range(chunkStart, chunkEnd):
             img = self.images[index]
-            file = dir + "\\" + query + "_" + str(tid) + "_" + str(index).rjust(3,'0') + ".jpg"
+            file = f"{dir}\\{query}_{str(tid)}_{str(index).rjust(3,'0')}.jpg"
             try:
                 request.urlretrieve(img, file)
                 self.completed += 1
@@ -189,4 +188,4 @@ class Scraper:
             pass
         with open(dirName, "a") as fa:
             for index, link in self.images.items():
-                fa.write(str(index) + " : " + link + "\n")
+                fa.write(f"{str(index)} : {link}\n")
