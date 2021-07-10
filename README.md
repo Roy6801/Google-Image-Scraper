@@ -25,7 +25,7 @@ Import Scraper class:-
 from scraper import Scraper
 
 urlDict = Scraper().fetch(self, query, count=50, tCount=1,
-quality=True, downloadImages=False, saveList=False)
+quality=True, downloadImages=False, saveList=False, defaultDir=False)
 
 query   :   Images that you are looking for.
 
@@ -40,6 +40,9 @@ downloadImages  :   Set this True to download the images to a
                     folder.
 
 saveList    :   Set this True to save list of urls to a folder.
+
+defaultDir	:	Set True to save files to a folder created at current working directory.
+				Set False to get prompted for directory selection.
 
 urlDict will contain the dictionary of image urls that can be used
 anywhere in the program.
