@@ -4,23 +4,34 @@ from threading import Thread
 from progressbar import ProgressBar
 from tkinter.filedialog import askdirectory
 from urllib import parse, request
-import time
 from tkinter import Tk
+import time
 import os
 
+
 class Scraper:
-    def __init__(self):
+    def __init__(self, driverPath="chromedriver.exe"):
         self.images = dict()
         self.ctr = 0
-        self.url = "https://www.google.com/search?{}&source=lnms&tbm=isch&sa=X&ved=2ahUKEwjR5qK3rcbxAhXYF3IKHYiBDf8Q_AUoAXoECAEQAw&biw=1291&bih=590"        
+        self.url = "https://www.google.com/search?{}&source=lnms&tbm=isch&sa=X&ved=2ahUKEwjR5qK3rcbxAhXYF3IKHYiBDf8Q_AUoAXoECAEQAw&biw=1291&bih=590"
+        self.driverPath = driverPath.replace("/", "\\")
     
-    def fetch(self, query, count=50, tCount=1, quality=True, downloadImages=False, saveList=False, defaultDir=False):
-        
-        def createDir():
-            root = Tk()
-            root.withdraw()
-            root.attributes("-topmost", True)
+    def checkDir(self, dName, cnt):
+        if os.path.isdir(dName):
+            dName = dName.replace(f" ({cnt - 1})", "")
+            dName = dName + f" ({cnt})"
+            return self.checkDir(dName, cnt + 1)
+        else:
+            return dName
+    
+    def createDir(self, query, defaultDir, dirPath):
+        root = Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
 
+        if dirPath is not None and len(dirPath) != 0:
+            directory = dirPath + "\\GIS Downloads\\" + query
+        else:
             if not defaultDir:
                 directory = askdirectory(parent=root)
                 if directory is not None and len(directory) != 0:
@@ -31,13 +42,21 @@ class Scraper:
                     directory = os.getcwd() + "\\GIS Downloads\\" + query
             else:
                 directory = os.getcwd() + "\\GIS Downloads\\" + query
-            
-            os.makedirs(directory, exist_ok=True)
-            print("Saving to... ", directory)
-            return directory
         
+        
+        directory = self.checkDir(dName=directory, cnt=0)
+        os.makedirs(directory, exist_ok=True)
+        print("Saving to... ", directory)
+        return directory
+
+    def fetch(self, query, count=50, tCount=1, quality=True, downloadImages=False, saveList=False, defaultDir=False, dirPath=""):
         thr = []
         query = query.strip()
+
+        options = webdriver.ChromeOptions()
+        options.add_argument("--incognito")
+        options.add_argument("--headless")
+        options.add_argument('--log-level=3')
 
         if tCount > 4:
             tCount = 4
@@ -59,7 +78,7 @@ class Scraper:
         self.pb = ProgressBar(count, "Getting Images")
         
         for i in range(tCount):
-            t = Thread(target=fetch, args=(query, count, i))
+            t = Thread(target=fetch, args=(query, options, count, i))
             thr.append(t)
             t.start()
         
@@ -71,7 +90,7 @@ class Scraper:
         if downloadImages:
             self.completed = 0
             pCount = tCount
-            dirName = createDir()
+            dirName = self.createDir(query, defaultDir, dirPath)
 
             pcr = []
             self.downloader = ProgressBar(len(self.images), "Downloading Images")
@@ -83,20 +102,19 @@ class Scraper:
             for p in pcr:
                 p.join()
             
+            if saveList:
+                self.saveToList(dirName, query)
+
             del self.downloader
         
-        if saveList:
-            dirName = createDir()
-            self.saveToList(dirName)
+        elif saveList and not downloadImages:
+            dirName = self.createDir(query, defaultDir, dirPath)
+            self.saveToList(dirName, query)
         
         return self.images
     
-    def sub_fetch1(self, query, count=100, tid=0):
-        options = webdriver.ChromeOptions()
-        options.add_argument("--incognito")
-        options.add_argument("--headless")
-        options.add_argument('--log-level=3')
-        driver = webdriver.Chrome(executable_path="chromedriver.exe", chrome_options=options)
+    def sub_fetch1(self, query, options, count=100, tid=0):
+        driver = webdriver.Chrome(executable_path=self.driverPath, chrome_options=options)
         url = self.url.format(parse.urlencode({'q': query}))
         driver.get(url)
         try:
@@ -131,12 +149,8 @@ class Scraper:
         except Exception as e:
             pass
     
-    def sub_fetch2(self, query, count=100, tid=0):
-        options = webdriver.ChromeOptions()
-        options.add_argument("--incognito")
-        options.add_argument("--headless")
-        options.add_argument('--log-level=3')
-        driver = webdriver.Chrome(executable_path="chromedriver.exe", chrome_options=options)
+    def sub_fetch2(self, query, options, count=100, tid=0):
+        driver = webdriver.Chrome(executable_path=self.driverPath, chrome_options=options)
         url = self.url.format(parse.urlencode({'q': query}))
         driver.get(url)
 
@@ -170,6 +184,9 @@ class Scraper:
         else:
             chunkEnd = chunkStart + taskLength
         
+        opener = request.build_opener()
+        opener.addheaders = [('User-Agent','Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1941.0 Safari/537.36')]
+        request.install_opener(opener)
         for index in range(chunkStart, chunkEnd):
             img = self.images[index]
             file = f"{dir}\\{query}_{str(tid)}_{str(index).rjust(3,'0')}.jpg"
@@ -180,12 +197,8 @@ class Scraper:
             except Exception as e:
                 pass
     
-    def saveToList(self, dirName):
-        dirName = dirName + "\\urls.txt"
-        try:
-            os.remove(dirName)
-        except:
-            pass
+    def saveToList(self, dirName, query):
+        dirName = dirName + f"\\{query}.txt"
         with open(dirName, "a") as fa:
             for index, link in self.images.items():
                 fa.write(f"{str(index)} : {link}\n")
