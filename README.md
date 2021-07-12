@@ -21,7 +21,7 @@ query passed number from 0 to [(Count - 1) entered].
 
 Import Scraper class:-
 
-from scraper import Scraper
+from gi_scraper.scraper import Scraper
 
 urlDict = Scraper().fetch(query="Search Query", count=50, tCount=1, quality=True, downloadImages=False, saveList=False, defaultDir=False, dirPath="")
 
