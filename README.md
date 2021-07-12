@@ -35,10 +35,10 @@ driverPath  :   Scraper() object by default looks for chromedriver.exe in curren
 
 query   :   Images that you are looking for. No Default.
 
-count   :   Number of Images required. (Max. : 120 for quality
+count   :   Number of Images required. (Max. : 150 for quality
             = True, Max. : 300 for quality = False). Default : 50.
 
-tCount  :   Number of threads (Max. : 4). Default : 1.
+tCount  :   Number of threads (Max. : 8). Default : 1.
 
 quality :   When True, will return higher image quality urls. Default : True.
 
