@@ -58,17 +58,18 @@ class Scraper:
         options.add_argument("--headless")
         options.add_argument('--log-level=3')
 
-        if tCount > 4:
-            tCount = 4
-            print("THREAD COUNT SET : ", tCount, ", LIMITING TO 4")
+        if tCount > 8:
+            tCount = 8
+            print("THREAD COUNT SET : ", tCount, ", LIMITING TO 8")
         else:
             print("THREAD COUNT SET : ", tCount)
 
         if quality:
             fetch = self.sub_fetch1
-            if count > 120:
-                print("QUALITY SET : TRUE, GIVEN COUNT :", count ,", LIMITING TO : 120")
-                count = 120
+            if count > 150:
+                print("QUALITY SET : TRUE, GIVEN COUNT :",
+                      count, ", LIMITING TO : 150")
+                count = 150
         else:
             fetch = self.sub_fetch2
             if count > 300:
