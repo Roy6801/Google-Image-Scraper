@@ -1,1 +1,1 @@
-from gi_scraper import Scraper
+from .scraper import Scraper
