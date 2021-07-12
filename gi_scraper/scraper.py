@@ -1,7 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver import ActionChains
 from threading import Thread
-from progressbar import ProgressBar
+from .progressbar import ProgressBar
 from tkinter.filedialog import askdirectory
 from urllib import parse, request
 from tkinter import Tk
