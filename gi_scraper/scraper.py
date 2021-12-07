@@ -10,11 +10,12 @@ import os
 
 
 class Scraper:
-    def __init__(self, driverPath="chromedriver.exe"):
+    def __init__(self, query, count=50, tCount=1, quality=True, downloadImages=False, saveList=False, defaultDir=False, dirPath="", driverPath=os.getcwd()+"/chromedriver.exe"):
         self.images = dict()
         self.ctr = 0
         self.url = "https://www.google.com/search?{}&source=lnms&tbm=isch&sa=X&ved=2ahUKEwjR5qK3rcbxAhXYF3IKHYiBDf8Q_AUoAXoECAEQAw&biw=1291&bih=590"
         self.driverPath = driverPath.replace("/", "\\")
+        self.fetch(self, query, count, tCount, quality, downloadImages, saveList, defaultDir, dirPath)
     
     def checkDir(self, dName, cnt):
         if os.path.isdir(dName):
