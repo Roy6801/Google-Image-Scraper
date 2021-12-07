@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.1.0'
+VERSION = '0.1.1'
 DESCRIPTION = 'Google Image Scraper'
 LONG_DESCRIPTION = 'A package that allows to fetch image urls from google images.'
 
