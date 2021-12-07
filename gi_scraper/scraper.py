@@ -1,4 +1,5 @@
 from selenium import webdriver
+from selenium.webdriver.common.by import By
 from selenium.webdriver import ActionChains
 from threading import Thread
 from .progressbar import ProgressBar
@@ -133,12 +134,12 @@ class Scraper:
                 cnt += 1
                 if len(self.images) >= count:break
                 driver.execute_script(f"window.scrollBy(0, {y});")
-                element = driver.find_element_by_id("islmp")
-                anchors = element.find_elements_by_css_selector(f"#islrg > div.islrc > div:nth-child({cnt}) > a.wXeWr.islib.nfEiy")
+                element = driver.find_element(By.ID ,"islmp")
+                anchors = element.find_elements(By.CSS_SELECTOR ,f"#islrg > div.islrc > div:nth-child({cnt}) > a.wXeWr.islib.nfEiy")
                 for anchor in anchors:
                     ActionChains(driver).click(anchor).perform()
                     time.sleep(1.0)
-                    img = anchor.find_element_by_xpath('//*[@id="Sva75c"]/div/div/div[3]/div[2]/c-wiz/div/div[1]/div[1]/div[2]/div[1]/a/img')
+                    img = anchor.find_element(By.XPATH,'//*[@id="Sva75c"]/div/div/div[3]/div[2]/c-wiz/div/div[1]/div[1]/div[2]/div[1]/a/img')
                     if len(self.images) >= count:break
                     else:
                         src = img.get_attribute("src")
@@ -165,7 +166,7 @@ class Scraper:
             while True:
                 if len(self.images) >= count:break
                 driver.execute_script(f"window.scrollBy(0, {y});")
-                imgs = driver.find_elements_by_class_name("rg_i")
+                imgs = driver.find_elements(By.CLASS_NAME, "rg_i")
                 for img in imgs:
                     src = img.get_attribute("src")
                     if len(self.images) >= count:break
