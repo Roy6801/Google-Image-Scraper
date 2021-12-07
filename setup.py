@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 from pathlib import Path
 
-current_dir = Path(__file__)
+current_dir = Path(__file__).parent
 
 VERSION = '0.1.2'
 DESCRIPTION = 'Google Image Scraper - A package that allows to fetch image urls and download images from google images.'
