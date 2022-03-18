@@ -44,12 +44,16 @@ def scrape(query,
         pCount = 8
         print("PROCESS COUNT SET : ", pCount, ", LIMITING TO 8")
     else:
+        if pCount == 0:
+            pCount = 1
         print("PROCESS COUNT SET : ", pCount)
 
     if tCount > 8:
         tCount = 8
         print("THREAD COUNT SET : ", tCount, ", LIMITING TO 8")
     else:
+        if tCount == 0:
+            tCount = 1
         print("THREAD COUNT SET : ", tCount)
 
     if quality:
@@ -84,19 +88,19 @@ def scrape(query,
 
     pbar.close()
 
+    imagesURL = []
+
+    while not images.empty():
+        imagesURL.append(images.get())
+
+    imagesURL = list(set(imagesURL))
+
     if downloadImages or saveList:
 
         dirName = createDir(query, defaultDir, dirPath)
 
         if download_images:
             threads = []
-
-            imagesURL = []
-
-            while not images.empty():
-                imagesURL.append(images.get())
-
-            imagesURL = list(set(imagesURL))
 
             for tid in range(tCount):
                 thr = Thread(target=download_images,
@@ -110,9 +114,9 @@ def scrape(query,
         if saveList:
             saveToList(images, dirName, query)
 
-        urlDict = {k: v for k, v in enumerate(imagesURL)}
+    urlDict = {k: v for k, v in enumerate(imagesURL)}
 
-        return urlDict
+    return urlDict
 
 
 def fetch1(url, images, driverPath, options, pid=0):
@@ -138,7 +142,7 @@ def fetch1(url, images, driverPath, options, pid=0):
             )
             for anchor in anchors:
                 ActionChains(driver).click(anchor).perform()
-                time.sleep(1.0)
+                time.sleep(0.1)
                 img = anchor.find_element(
                     By.XPATH,
                     '//*[@id="Sva75c"]/div/div/div[3]/div[2]/c-wiz/div/div[1]/div[1]/div[2]/div[1]/a/img'
@@ -153,6 +157,7 @@ def fetch1(url, images, driverPath, options, pid=0):
                         continue
                     images.put(src)
                 driver.back()
+                time.sleep(0.1)
             y += 1000
     except Exception as e:
         pass

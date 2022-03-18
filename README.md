@@ -24,7 +24,8 @@ Download correct version of chromedriver from here:-
 ```python
 from gi_scraper import scrape
 
-urlDict = scrape(query="Search Query", count=50, tCount=1, quality=True, downloadImages=False, saveList=False, defaultDir=False, dirPath="", driverPath="/path/to/chromedriver.exe")
+if __name__ == "__main__":
+    urlDict = scrape(query="Search Query", count=50, pCount=1, tCount=1, quality=True, downloadImages=False, saveList=False, defaultDir=False, dirPath="", driverPath="/path/to/chromedriver.exe")
 ```
 
 | Parameter      | Description                                                                                                                                                                                                                     | Default                   |
