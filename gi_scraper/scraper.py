@@ -112,7 +112,7 @@ def scrape(query,
                 thr.join()
 
         if saveList:
-            saveToList(images, dirName, query)
+            saveToList(imagesURL, dirName, query)
 
     urlDict = {k: v for k, v in enumerate(imagesURL)}
 

@@ -65,5 +65,5 @@ def download_images(query, images, dir, tCount=1, tid=0):
 def saveToList(images, dirName, query):
     dirName = dirName + f"\\{query}.txt"
     with open(dirName, "a") as fa:
-        for index, link in images.items():
+        for index, link in enumerate(images):
             fa.write(f"{str(index)} : {link}\n")
