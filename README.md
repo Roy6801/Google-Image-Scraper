@@ -22,9 +22,9 @@ Download correct version of chromedriver from here:-
 ## Link - https://chromedriver.chromium.org/downloads
 
 ```python
-from gi_scraper.scraper import Scraper
+from gi_scraper import scrape
 
-urlDict = Scraper(query="Search Query", count=50, tCount=1, quality=True, downloadImages=False, saveList=False, defaultDir=False, dirPath="", driverPath="/path/to/chromedriver.exe")
+urlDict = scrape(query="Search Query", count=50, tCount=1, quality=True, downloadImages=False, saveList=False, defaultDir=False, dirPath="", driverPath="/path/to/chromedriver.exe")
 ```
 
 | Parameter      | Description                                                                                                                                                                                                                     | Default                   |
