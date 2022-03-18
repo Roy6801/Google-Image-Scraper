@@ -3,8 +3,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver import ActionChains
 from multiprocessing import Process, Queue
 from threading import Thread
-from driver_manager import Manager
-from utils import *
+from .driver_manager import Manager
+from .utils import *
 from urllib import parse
 from tqdm import tqdm
 import time
