@@ -1,6 +1,7 @@
 from tkinter.filedialog import askdirectory
 from urllib import request
 from tkinter import Tk
+import json
 import os
 
 
@@ -62,8 +63,7 @@ def download_images(query, images, dir, tCount=1, tid=0):
             pass
 
 
-def saveToList(images, dirName, query):
-    dirName = dirName + f"\\{query}.txt"
-    with open(dirName, "a") as fa:
-        for index, link in enumerate(images):
-            fa.write(f"{str(index)} : {link}\n")
+def saveToList(imgDict, dirName, query):
+    dirName = dirName + f"\\{query}.json"
+    with open(dirName, "w") as fw:
+        json.dump(imgDict, fw)
