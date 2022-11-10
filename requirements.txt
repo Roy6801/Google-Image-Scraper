@@ -1,2 +1,2 @@
-selenium
-tqdm
+selenium==4.6.0
+tqdm==4.64.1

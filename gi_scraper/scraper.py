@@ -1,192 +1,82 @@
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver import ActionChains
-from multiprocessing import Process, Queue
-from threading import Thread
-from .driver_manager import Manager
-from .utils import *
-from urllib import parse
+from .arch import Master
+from .scraped_response import ScrapedResponse
+from multiprocessing import Value
+from ctypes import c_bool, c_char
 from tqdm import tqdm
 import time
 
 
-def scrape(query,
-           count=50,
-           pCount=1,
-           tCount=1,
-           quality=True,
-           downloadImages=False,
-           saveList=False,
-           defaultDir=False,
-           dirPath="",
-           driverPath=""):
-    query = query.strip()
+class Scraper(Master):
 
-    count = abs(int(count))
-    pCount = abs(int(pCount))
-    tCount = abs(int(tCount))
+    def __init__(self, process_count=1):
+        self.__process_count = process_count
+        self.__null = b"_"
+        self.__query = Value(c_char * 100, self.__null)
+        self.__task = Value(c_bool, False)
+        self.__fun = Value(c_char * 100, self.__null)
+        super().__init__(self.__query,
+                         self.__task,
+                         self.__fun,
+                         worker_args="worker_args",
+                         num_workers=process_count)
 
-    url = "https://www.google.com/search?{}&source=lnms&tbm=isch&sa=X&ved=2ahUKEwjR5qK3rcbxAhXYF3IKHYiBDf8Q_AUoAXoECAEQAw&biw=1291&bih=590"
-    url = url.format(parse.urlencode({'q': query}))
-
-    if driverPath == "":
-        driverPath = Manager().chromeDriver()
-    driverPath = driverPath.replace("/", "\\")
-
-    images = Queue(maxsize=count)
-
-    options = webdriver.ChromeOptions()
-    options.add_argument("--incognito")
-    options.add_argument("--headless")
-    options.add_argument('--log-level=3')
-    options.add_argument('--ignore-certificate-errors')
-    options.add_argument('--ignore-ssl-errors')
-    options.add_argument('--allow-running-insecure-content')
-    options.add_argument('--unsafely-treat-insecure-origin-as-secure')
-    options.add_argument('--allow-insecure-localhost')
-
-    if pCount > 8:
-        pCount = 8
-        print("PROCESS COUNT SET : ", pCount, ", LIMITING TO 8")
-    else:
-        if pCount == 0:
-            pCount = 1
-        print("PROCESS COUNT SET : ", pCount)
-
-    if tCount > 8:
-        tCount = 8
-        print("THREAD COUNT SET : ", tCount, ", LIMITING TO 8")
-    else:
-        if tCount == 0:
-            tCount = 1
-        print("THREAD COUNT SET : ", tCount)
-
-    if quality:
-        fetch = fetch1
-        if count > 150:
-            print("QUALITY SET : TRUE, GIVEN COUNT :", count,
-                  ", LIMITING TO : 150")
-            count = 150
-    else:
-        fetch = fetch2
-        if count > 300:
-            print("QUALITY SET : FALSE, GIVEN COUNT :", count,
-                  ", LIMITING TO : 300")
-            count = 300
-
-    processes = []
-
-    for pid in range(pCount):
-        prc = Process(target=fetch,
-                      args=(url, images, driverPath, options, pid))
-        processes.append(prc)
-        prc.start()
-
-    prevSize = -1
-
-    pbar = tqdm(total=count)
-
-    while not images.full():
-        currSize = images.qsize()
-        pbar.update(currSize - prevSize)
-        prevSize = currSize
-
-    pbar.close()
-
-    imagesURL = []
-
-    while not images.empty():
-        imagesURL.append(images.get())
-
-    imagesURL = list(set(imagesURL))
-
-    urlDict = {k: v for k, v in enumerate(imagesURL)}
-
-    if downloadImages or saveList:
-
-        dirName = createDir(query, defaultDir, dirPath)
-
-        if downloadImages:
-            threads = []
-
-            for tid in range(tCount):
-                thr = Thread(target=download_images,
-                             args=(query, imagesURL, dirName, tCount, tid))
-                threads.append(thr)
-                thr.start()
-
-            for thr in threads:
-                thr.join()
-
-        if saveList:
-            saveToList(urlDict, dirName, query)
-
-    return urlDict
-
-
-def fetch1(url, images, driverPath, options, pid=0):
-    driver = webdriver.Chrome(executable_path=driverPath,
-                              chrome_options=options)
-    driver.get(url)
-
-    try:
-        y = 0
-        if pid == 0:
-            cnt = 1
+    def scrape(self,
+               query,
+               count=50,
+               quality=False,
+               progressbar=True,
+               timeout=10):
+        self.__timeout = timeout
+        self.__urls = set()
+        if self.__process_count > 1:
+            print("\n[INFO] Gearing Up Quality Setting...\n")
+            quality = True
+        self.__query.value = query.encode("utf-8")
+        self.__task.value = True
+        if quality:
+            self.__fun.value = b"high_res"
         else:
-            cnt = 50 * pid
+            self.__fun.value = b"low_res"
+        time.sleep(3)
+        self.__fun.value = self.__null
+        self.__progress_tracker(count, progressbar)
+        self.__task.value = False
+        self._flush_stream()
+        return ScrapedResponse(query,
+                               count,
+                               len(self.__urls),
+                               quality,
+                               urls=list(self.__urls))
 
-        while True:
-            cnt += 1
-            if images.full(): break
-            driver.execute_script(f"window.scrollBy(0, {y});")
-            element = driver.find_element(By.ID, "islmp")
-            anchors = element.find_elements(
-                By.CSS_SELECTOR,
-                f"#islrg > div.islrc > div:nth-child({cnt}) > a.wXeWr.islib.nfEiy"
-            )
-            for anchor in anchors:
-                ActionChains(driver).click(anchor).perform()
-                time.sleep(1)
-                img = anchor.find_element(
-                    By.XPATH,
-                    '//*[@id="Sva75c"]/div/div/div[3]/div[2]/c-wiz/div/div[1]/div[1]/div[3]/div/a/img'
-                )
-                if images.full(): break
-                else:
-                    src = img.get_attribute("src")
-                    if src is None: continue
-                    src = str(src)
-                    if src.startswith("data:image/") or src.startswith(
-                            "https://encrypted"):
-                        continue
-                    images.put(src)
-                driver.back()
-                time.sleep(0.1)
-            y += 1000
-    except Exception as e:
-        print(e)
+    def __progress_tracker(self, count, progressbar):
+        output = self._output_stream()
+        last_update = int(time.time())
+        prev_len = len(self.__urls)
+        curr_len = prev_len
+        if progressbar:
+            pbar = tqdm(total=count)
+            pbar.set_description(f"Querying ({self.__query.value.decode()})")
 
+        while curr_len < count:
+            try:
+                if not output.empty():
+                    url = output.get()
+                    self.__urls.add(url)
+                    curr_len = len(self.__urls)
+                    if curr_len > prev_len:
+                        if progressbar: pbar.update(1)
+                        last_update = int(time.time())
+                    prev_len = curr_len
+                elif int(time.time()) - last_update > self.__timeout:
+                    print("\n[INFO] Timeout! Moving on...\n")
+                    break
+            except Exception as e:
+                print(e)
 
-def fetch2(url, images, driverPath, options, pid=0):
-    driver = webdriver.Chrome(executable_path=driverPath,
-                              chrome_options=options)
-    driver.get(url)
+        if progressbar: pbar.close()
 
-    try:
-        y = pid * 1000
+    def close(self):
+        self._stop_workers()
 
-        while True:
-            if images.full(): break
-            driver.execute_script(f"window.scrollBy(0, {y});")
-            imgs = driver.find_elements(By.CLASS_NAME, "rg_i")
-            for img in imgs:
-                src = img.get_attribute("src")
-                if images.full(): break
-                else:
-                    if src is None: continue
-                    src = str(src)
-                    images.put(src)
-            y += 10
-    except Exception as e:
-        print(e)
+    def __del__(self):
+        return super().__del__()
