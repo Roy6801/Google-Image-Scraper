@@ -9,11 +9,14 @@ import time
 url_frame = "https://www.google.com/search?{}&source=lnms&tbm=isch&sa=X&ved=2ahUKEwjR5qK3rcbxAhXYF3IKHYiBDf8Q_AUoAXoECAEQAw&biw=1291&bih=590"
 
 
-def worker_args():
+def worker_args() -> tuple:
     options = webdriver.ChromeOptions()
-    options.add_argument('--ignore-certificate-errors')
-    options.add_argument("--incognito")
-    options.add_argument("--headless")
+    options.add_argument("ignore-certificate-errors")
+    options.add_argument("incognito")
+    options.add_argument("headless")
+    options.add_argument("log-level=3")
+    options.add_argument("disable-gpu")
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
     driver = webdriver.Chrome(chrome_options=options)
     return (driver, )
 
@@ -32,7 +35,8 @@ def low_res(pid, total_workers, output_queue, driver, query, task):
     for img in imgs:
         if not task.value: break
         img_url = img.get_attribute("src")
-        output_queue.put(img_url)
+        if isinstance(img_url, str):
+            output_queue.put(img_url)
 
 
 def high_res(pid, total_workers, output_queue, driver, query, task):
@@ -48,7 +52,7 @@ def high_res(pid, total_workers, output_queue, driver, query, task):
 
     wait = WebDriverWait(driver, delay)
 
-    imgs = driver.find_elements(By.CLASS_NAME, "rg_i")
+    imgs = list(set(driver.find_elements(By.CLASS_NAME, "rg_i")))
 
     while task.value:
         try:
@@ -60,12 +64,16 @@ def high_res(pid, total_workers, output_queue, driver, query, task):
             img_element = elements[-1]
             img_url = img_element.get_attribute("src")
 
-            output_queue.put(img_url)
+            if isinstance(img_url, str):
+                output_queue.put(img_url)
             index += total_workers
-            imgs = driver.find_elements(By.CLASS_NAME, "rg_i")
+            if index >= len(imgs):
+                old_set = set(imgs)
+                new_set = set(driver.find_elements(By.CLASS_NAME, "rg_i"))
+                imgs = list(old_set.union(new_set))
         except Exception as e:
             index += total_workers
-            print(e)
+            # print(e)
 
 
 def scroll_to_y(action, y, task):

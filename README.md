@@ -21,23 +21,46 @@ Download correct version of chromedriver from here:-
 
 ## Link - https://chromedriver.chromium.org/downloads
 
+</br>
+
 ```python
-from gi_scraper import scrape
+# import Scraper class
+from gi_scraper import Scraper
 
+# important since the library implements multiprocessing
 if __name__ == "__main__":
-    urlDict = scrape(query="Search Query", count=50, pCount=1, tCount=1, quality=True, downloadImages=False, saveList=False, defaultDir=False, dirPath="", driverPath="/path/to/chromedriver.exe")
+
+    # creating Scraper object
+    scraper = Scraper(process_count=4)
+
+    for query in ["Naruto", "Gintoki", "Luffy", "Goku"]:
+        
+        # use scrape method to fire queries - returns ScrapedResponse object
+        scraped_response = scraper.scrape(query, count, quality, progressbar, timeout)
+
+        # default values
+        # process_count=1
+        # count=50
+        # quality=False (works only for process_count=1)
+        # progressbar=True
+        # timeout=10 (in seconds)
+
+        # setting process_count > 1 will change quality to True for every call to scrape method
+
+
+        # dealing with ScrapedResponse object
+        # write and download methods can be chained
+        # writes to a json file
+        # downloads .jpg images
+        scraped_response.write(path="./", filename="query").download(path="./", thread_count=1)
+
+
+        # get returns a dictionary with metadata and list of scraped urls
+        # can be chained only at the end of the chained methods (write and download)
+        scraped_response.get()
+    
+
+    # call close method or (del scraper) once scraping is done
+    # needed for avoiding program going into an infinite loop
+    scraper.close()
 ```
-
-| Parameter      | Description                                                                                                                                                                                                                     | Default                   |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| driverPath     | Scraper(driverPath="Path to chromedriver.exe")                                                                                                                                                                                  | Current Working Directory |
-| query          | Images that you are looking for.                                                                                                                                                                                                | -                         |
-| count          | Number of Images required. (Max. : 150 for quality = True, Max. : 300 for quality = False).                                                                                                                                     | 50                        |
-| tCount         | Number of threads (Max. : 8).                                                                                                                                                                                                   | 1                         |
-| quality        | True: fetches only high image quality urls or images.                                                                                                                                                                           | True                      |
-| downloadImages | True: download the images to a folder.                                                                                                                                                                                          | False                     |
-| saveList       | True: save list of urls to a folder.                                                                                                                                                                                            | False                     |
-| defaultDir     | True: save files to a folder created at current working directory. False: prompts for directory selection.                                                                                                                      | False                     |
-| dirPath        | Set path to your default download/save directory. This will avoid prompting for path during download. This setting also overrides defaultDir in which download path is current working directory by setting it to entered path. | Not Set                   |
-
-urlDict will contain the dictionary of image urls that can be used anywhere in the program.

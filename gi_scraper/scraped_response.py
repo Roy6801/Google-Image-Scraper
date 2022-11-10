@@ -29,11 +29,10 @@ class ScrapedResponse:
     def get(self):
         return self.__response
 
-    def download(self, path="./", foldername=None, thread_count=1):
-        if not foldername:
-            foldername = self.__query
-        folderpath = os.path.join(path, foldername)
-        os.makedirs(folderpath, exist_ok=True)
+    def download(self, path=None, thread_count=1):
+        if not path:
+            path = self.__query
+        os.makedirs(path, exist_ok=True)
 
         task_length = self.__scraped_count // thread_count
         opener = request.build_opener()
@@ -54,8 +53,8 @@ class ScrapedResponse:
             if tid == thread_count - 1:
                 chunk_end = self.__scraped_count
             thread = Thread(target=self.__downloader,
-                            args=(tid, folderpath, chunk_start, chunk_end,
-                                  request, pbar))
+                            args=(tid, path, chunk_start, chunk_end, request,
+                                  pbar))
             threads.append(thread)
             thread.start()
 

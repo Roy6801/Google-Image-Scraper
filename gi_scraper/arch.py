@@ -1,7 +1,8 @@
 from multiprocessing import Process, Queue, Value
 from ctypes import c_bool
+from . import jobs
 import time
-import jobs
+import math
 
 
 class _Worker(Process):
@@ -16,16 +17,13 @@ class _Worker(Process):
         worker_init = getattr(jobs, worker_args)
         task_args = *worker_init(), *args
 
-        while True:
+        while self.__alive.value:
             try:
-                if self.__alive.value:
-                    if fun.value != b"_":
-                        work = getattr(jobs, fun.value.decode())
-                        if hasattr(work, "__call__"):
-                            work(self.__p_id, self.__num, self.__output_queue,
-                                 *task_args)
-                else:
-                    break
+                if fun.value != b"_":
+                    work = getattr(jobs, fun.value.decode())
+                    if hasattr(work, "__call__"):
+                        work(self.__p_id, self.__num, self.__output_queue,
+                             *task_args)
             except Exception as e:
                 print(e)
             finally:
@@ -49,6 +47,12 @@ class Master:
 
         for worker in self.__workers:
             worker.start()
+
+        time.sleep(self.__init_time())
+
+    def __init_time(self):
+        interval = round(self.__num / math.pi, 2)
+        return interval
 
     def _output_stream(self):
         return self.__output_queue
