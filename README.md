@@ -34,7 +34,7 @@ if __name__ == "__main__":
     scraper = Scraper(process_count=4)
 
     for query in ["Naruto", "Gintoki", "Luffy", "Goku"]:
-        
+
         # use scrape method to fire queries - returns ScrapedResponse object
         scraped_response = scraper.scrape(query, count, quality, progressbar, timeout)
 
@@ -58,9 +58,13 @@ if __name__ == "__main__":
         # get returns a dictionary with metadata and list of scraped urls
         # can be chained only at the end of the chained methods (write and download)
         scraped_response.get()
-    
+
 
     # call close method or (del scraper) once scraping is done
     # needed for avoiding program going into an infinite loop
     scraper.close()
 ```
+
+</br>
+
+## CAUTION: Too high number of process counts causes unstable behaviour!
