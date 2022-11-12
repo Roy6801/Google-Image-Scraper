@@ -47,12 +47,6 @@ class Master:
         for worker in self.__workers:
             worker.start()
 
-    #     time.sleep(self.__init_time())
-
-    # def __init_time(self):
-    #     interval = round(self.__num / math.pi, 2)
-    #     return interval
-
     def _output_stream(self):
         return self.__output_queue
 
