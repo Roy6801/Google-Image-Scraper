@@ -9,7 +9,6 @@ class _Worker(Process):
 
     def __init__(self, *args):
         super().__init__()
-        # queue, pid, query, task, fun, worker_args, alive
         self.__p_id, self.__num, self.__output_queue, *self.__params, self.__alive = args
 
     def run(self):
@@ -47,12 +46,6 @@ class Master:
 
         for worker in self.__workers:
             worker.start()
-
-        time.sleep(self.__init_time())
-
-    def __init_time(self):
-        interval = round(self.__num / math.pi, 2)
-        return interval
 
     def _output_stream(self):
         return self.__output_queue
