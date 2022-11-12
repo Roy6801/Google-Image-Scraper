@@ -1,9 +1,12 @@
 from gi_scraper import Scraper
 
 if __name__ == "__main__":
+
+    queries = ["Naruto", "Gintoki", "Luffy", "Goku"]
+
     sc1 = Scraper()
     quality = "low"
-    for query in ["Naruto", "Gintama"]:
+    for query in queries:
         sc1.scrape(query, count=120,
                    progressbar=True).write(
                        path=f"./{quality}_quality",
@@ -15,7 +18,7 @@ if __name__ == "__main__":
     quality = "high"
 
     sc2 = Scraper(process_count=4)
-    for query in ["Naruto", "Gintama"]:
+    for query in queries:
         sc2.scrape(query, count=120,
                    progressbar=True).write(
                        path=f"./{quality}_quality",

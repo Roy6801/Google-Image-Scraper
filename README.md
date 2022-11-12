@@ -17,9 +17,7 @@ This module will help in fetching or downloading images from google.
 ## How to Use?
 
 This module is to be used along with **chromedriver**.
-Download correct version of chromedriver from here:-
-
-## Link - https://chromedriver.chromium.org/downloads
+The driver will be automatically downloaded on first run.
 
 </br>
 
@@ -27,7 +25,7 @@ Download correct version of chromedriver from here:-
 # import Scraper class
 from gi_scraper import Scraper
 
-# important since the library implements multiprocessing
+# important since the module is built on top of multiprocessing
 if __name__ == "__main__":
 
     # creating Scraper object
@@ -67,4 +65,4 @@ if __name__ == "__main__":
 
 </br>
 
-## CAUTION: Too high number of process counts causes unstable behaviour!
+### CAUTION: Unstable behavior on a very high process count! (Recommended Range: 4 - 8)
