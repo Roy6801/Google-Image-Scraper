@@ -15,7 +15,7 @@ setup(name="gi_scraper",
       long_description_content_type="text/markdown",
       long_description=LONG_DESCRIPTION,
       packages=find_packages(),
-      install_requires=['selenium'],
+      install_requires=['selenium', 'webdriver-manager'],
       keywords=[
           'python', 'selenium', 'web scraping', 'images',
           'google image scraper', 'web scraper', 'image scraping',
