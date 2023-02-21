@@ -3,8 +3,8 @@ from pathlib import Path
 
 current_dir = Path(__file__).parent
 
-VERSION = '0.3.1'
-DESCRIPTION = 'Google Image Scraper - A package that allows to fetch image urls and download images from google images.'
+VERSION = '0.3.2'
+DESCRIPTION = 'Google Image Scraper.'
 LONG_DESCRIPTION = (current_dir / "README.md").read_text()
 
 setup(name="gi_scraper",
@@ -15,11 +15,11 @@ setup(name="gi_scraper",
       long_description_content_type="text/markdown",
       long_description=LONG_DESCRIPTION,
       packages=find_packages(),
-      install_requires=['selenium', 'tqdm'],
+      install_requires=['selenium'],
       keywords=[
           'python', 'selenium', 'web scraping', 'images',
           'google image scraper', 'web scraper', 'image scraping',
-          'google images', 'image scraper'
+          'google images', 'image scraper', 'image API', 'API'
       ],
       classifiers=[
           "Development Status :: 1 - Planning",

@@ -1,96 +1,167 @@
-from .arch import Master
-from .scraped_response import ScrapedResponse
-from multiprocessing import Value
-from ctypes import c_bool, c_int, c_char
-from tqdm import tqdm
+from selenium import webdriver
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service
+from threading import Thread
+from queue import Queue
+from urllib import parse
 import time
+from .response import Response
 
 
-class Scraper(Master):
+class Scraper:
 
-    def __init__(self, process_count=1):
-        self.__process_count = process_count
-        self.__null = b"_"
-        self.__query = Value(c_char * 100, self.__null)
-        self.__task = Value(c_bool, False)
-        self.__at_work = Value(c_int, 0)
-        self.__fun = Value(c_char * 100, self.__null)
-        super().__init__(self.__query,
-                         self.__task,
-                         self.__at_work,
-                         self.__fun,
-                         worker_args="worker_args",
-                         num_workers=process_count)
+    def __init__(self, workers=1, headless=True):
+        self.__workers = workers
+        self.__worker_threads = []
+        self.__headless = headless
+        self.__drivers = []
+        self._driver_init()
+        self.__images = set()
+        self.__imqueue = Queue()
+        self.__interrupt = False
 
-    def scrape(self,
-               query,
-               count=50,
-               quality=False,
-               progressbar=True,
-               timeout=10):
-        self.__timeout = timeout
-        self.__urls = set()
-        if self.__process_count > 1:
-            print("\n[INFO] Gearing Up Quality Setting...\n")
-            quality = True
-        self.__query.value = query.encode("utf-8")
-        self.__task.value = True
-        if quality:
-            self.__fun.value = b"high_res"
-        else:
-            self.__fun.value = b"low_res"
+    def _driver_init(self):
+        self.__driver_path = ChromeDriverManager().install()
+        self.__options = webdriver.ChromeOptions()
+        self.__options.add_argument("ignore-certificate-errors")
+        self.__options.add_argument("incognito")
+        if self.__headless:
+            self.__options.add_argument("headless")
+        self.__options.add_argument("log-level=3")
+        self.__options.add_argument("disable-gpu")
+        self.__options.add_experimental_option('excludeSwitches',
+                                               ['enable-logging'])
+        driver_threads = []
 
-        self.__wait_till(at_work=self.__process_count)
-        self.__fun.value = self.__null
-        self.__progress_tracker(count, progressbar)
-        self.__task.value = False
-        self.__wait_till(at_work=0)
+        for _ in range(self.__workers):
+            thread = Thread(target=self._spawn_driver)
+            driver_threads.append(thread)
+            thread.start()
+
+        for thread in driver_threads:
+            thread.join()
+
+    def _spawn_driver(self):
+        driver = webdriver.Chrome(service=Service(self.__driver_path),
+                                  options=self.__options)
+
+        driver.get("https://www.google.com/")
+        self.__drivers.append(driver)
+
+    def _spawn_workers(self):
+        self.__interrupt = False
+        for i in range(self.__workers):
+            thread = Thread(target=self._get_images,
+                            args=(i + 1, self.__drivers[i]))
+            self.__worker_threads.append(thread)
+            thread.start()
+
+    def _destroy_workers(self):
+        self.__interrupt = True
+        for thread in self.__worker_threads:
+            thread.join()
+        self.__worker_threads = []
+
+    def _get_images(self, id, driver):
+        url_frame = "https://www.google.com/search?{}&source=lnms&tbm=isch&sa=X&ved=2ahUKEwjR5qK3rcbxAhXYF3IKHYiBDf8Q_AUoAXoECAEQAw&biw=1291&bih=590"
+        url = url_frame.format(parse.urlencode({'q': self.__query}))
+        driver.get(url)
+
+        delay = 3  # seconds
+        index = id
+
+        while len(self.__images) < self.__count:
+            try:
+                if index > self.__count or self.__interrupt:
+                    break
+                action = ActionChains(driver)
+                wait = WebDriverWait(driver, delay)
+
+                img = driver.find_element(
+                    By.XPATH,
+                    f'//*[@id="islrg"]/div[1]/div[{index}]/a[1]/div[1]/img')
+
+                # Thumbnail
+                img_thumb = img.get_attribute("src")
+
+                # Image Title
+                img_name = img.get_attribute("alt")
+
+                action.click(img).perform()
+                elements = wait.until(
+                    EC.presence_of_all_elements_located(
+                        (By.CLASS_NAME, "KAlRDb")))
+
+                img_element = elements[-1]
+
+                # Image URL
+                img_url = img_element.get_attribute("src")
+
+                # //*[@id="islrg"]/div[1]/div[1]/a[1]/div[1]/img
+                # //*[@id="islrg"]/div[1]/div[51]/a[1]/div[1]/img
+
+                src_element = driver.find_element(
+                    By.XPATH,
+                    '//*[@id="Sva75c"]/div[2]/div/div[2]/div[2]/div[2]/c-wiz/div/div[1]/div[1]/div[1]/a/div/div[2]/div/div'
+                )
+
+                # Source Website Name
+                img_src_name = src_element.text
+
+                src_url_element = driver.find_element(
+                    By.XPATH,
+                    '//*[@id="Sva75c"]/div[2]/div/div[2]/div[2]/div[2]/c-wiz/div/div[1]/div[4]/div[1]/a[1]'
+                )
+
+                # Source Website URL
+
+                img_src_page = src_url_element.get_attribute("href")
+
+                self.__images.add(img_url)
+                if img_url in self.__images:
+                    response = Response(
+                        name=img_name,
+                        position=index,
+                        sourceName=img_src_name,
+                        sourcePage=img_src_page,
+                        thumbnail=img_thumb,
+                        url=img_url,
+                    )
+                    self.__imqueue.put(response)
+                index += self.__workers
+
+            except Exception as e:
+                if index > self.__count or self.__interrupt:
+                    break
+                index += self.__workers
+
+    def _stream(self):
+        start_time = int(time.time())
+        while len(self.__images) < self.__count:
+            if not self.__imqueue.empty():
+                start_time = int(time.time())
+                yield self.__imqueue.get()
+            else:
+                if int(time.time()) - start_time >= self.__timeout:
+                    break
+
+        self._destroy_workers()
         self._flush_stream()
 
-        return ScrapedResponse(query,
-                               count,
-                               len(self.__urls),
-                               quality,
-                               urls=list(self.__urls))
+    def _flush_stream(self):
+        while not self.__imqueue.empty():
+            self.__imqueue.get()
+        self.__images = set()
 
-    def __progress_tracker(self, count, progressbar):
-        output = self._output_stream()
-        last_update = int(time.time())
-        prev_len = len(self.__urls)
-        curr_len = prev_len
-        timed_out = False
+    def scrape(self, query, count, timeout=10):
+        self.__query = query
+        self.__count = count
+        self.__timeout = timeout
+        self._spawn_workers()
 
-        if progressbar:
-            pbar = tqdm(total=count)
-            pbar.set_description(f"Querying ({self.__query.value.decode()})")
-
-        while curr_len < count:
-            try:
-                if curr_len == 1:
-                    self.__fun.value = self.__null
-                if not output.empty():
-                    url = output.get()
-                    self.__urls.add(url)
-                    curr_len = len(self.__urls)
-                    if curr_len > prev_len:
-                        if progressbar: pbar.update(1)
-                        last_update = int(time.time())
-                    prev_len = curr_len
-                elif int(time.time()) - last_update > self.__timeout:
-                    timed_out = True
-                    break
-            except Exception as e:
-                print(e)
-
-        if progressbar: pbar.close()
-        if timed_out: print("\n[INFO] Timeout! Moving on...\n")
-
-    def __wait_till(self, at_work):
-        while not self.__at_work.value == at_work:
-            pass
-
-    def close(self):
-        self._stop_workers()
-
-    def __del__(self):
-        return super().__del__()
+    def get_stream(self):
+        return self._stream
