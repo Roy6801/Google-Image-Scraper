@@ -15,4 +15,4 @@ class Response:
         self.__dict__.update(kwargs)
 
     def to_dict(self):
-        return {k: v for k, v in self.__kwargs.items()}
+        return self.__kwargs

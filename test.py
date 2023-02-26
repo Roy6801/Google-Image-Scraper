@@ -6,8 +6,6 @@ from gi_scraper import Scraper
 
 sc = Scraper(workers=4, headless=False)
 
-stream = sc.get_stream()
-
 for query, count in {"Naruto": 50, "Gintoki": 50}.items():
 
     # 'get_stream' method returns a generator 'stream'
@@ -15,7 +13,7 @@ for query, count in {"Naruto": 50, "Gintoki": 50}.items():
     # after a query is fired and doesn't allow
     # chaining queries directly.
 
-    sc.scrape(query, count, timeout=5)
+    stream = sc.scrape(query, count, timeout=5)
 
     # A Response object is returned from the stream
     # It that the following attributes:

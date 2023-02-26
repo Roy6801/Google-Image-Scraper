@@ -23,18 +23,15 @@ class Scraper:
         self.__images = set()
         self.__imqueue = Queue()
         self.__interrupt = False
+        self.__cleanup = lambda x: int(float(x.replace("px;", "")))
+        self._setup()
 
-    def _driver_init(self):
-        self.__driver_path = ChromeDriverManager().install()
-        self.__options = webdriver.ChromeOptions()
-        self.__options.add_argument("ignore-certificate-errors")
-        self.__options.add_argument("incognito")
-        if self.__headless:
-            self.__options.add_argument("headless")
-        self.__options.add_argument("log-level=3")
-        self.__options.add_argument("disable-gpu")
-        self.__options.add_experimental_option('excludeSwitches',
-                                               ['enable-logging'])
+    def _setup(self):
+
+        thread = Thread(target=self._driver_init)
+        thread.start()
+        thread.join()
+
         driver_threads = []
 
         for _ in range(self.__workers):
@@ -44,6 +41,18 @@ class Scraper:
 
         for thread in driver_threads:
             thread.join()
+
+    def _driver_init(self):
+        self.__driver_path = ChromeDriverManager(path="./").install()
+        self.__options = webdriver.ChromeOptions()
+        self.__options.add_argument("ignore-certificate-errors")
+        self.__options.add_argument("incognito")
+        if self.__headless:
+            self.__options.add_argument("headless")
+        self.__options.add_argument("log-level=3")
+        self.__options.add_argument("disable-gpu")
+        self.__options.add_experimental_option('excludeSwitches',
+                                               ['enable-logging'])
 
     def _spawn_driver(self):
         driver = webdriver.Chrome(service=Service(self.__driver_path),
@@ -76,7 +85,7 @@ class Scraper:
 
         while len(self.__images) < self.__count:
             try:
-                if index > self.__count or self.__interrupt:
+                if self.__interrupt:
                     break
                 action = ActionChains(driver)
                 wait = WebDriverWait(driver, delay)
@@ -100,6 +109,12 @@ class Scraper:
 
                 # Image URL
                 img_url = img_element.get_attribute("src")
+                img_dim = img_element.get_attribute("style")
+
+                img_dim = img_dim.split(" ")
+
+                img_width = self.__cleanup(img_dim[1])
+                img_height = self.__cleanup(img_dim[3])
 
                 # //*[@id="islrg"]/div[1]/div[1]/a[1]/div[1]/img
                 # //*[@id="islrg"]/div[1]/div[51]/a[1]/div[1]/img
@@ -121,32 +136,33 @@ class Scraper:
 
                 img_src_page = src_url_element.get_attribute("href")
 
-                self.__images.add(img_url)
-                if img_url in self.__images:
-                    response = Response(
-                        name=img_name,
-                        position=index,
-                        sourceName=img_src_name,
-                        sourcePage=img_src_page,
-                        thumbnail=img_thumb,
-                        url=img_url,
-                    )
-                    self.__imqueue.put(response)
+                response = Response(name=img_name,
+                                    position=index,
+                                    sourceName=img_src_name,
+                                    sourcePage=img_src_page,
+                                    thumbnail=img_thumb,
+                                    url=img_url,
+                                    width=img_width,
+                                    height=img_height)
+                self.__imqueue.put(response)
                 index += self.__workers
 
             except Exception as e:
-                if index > self.__count or self.__interrupt:
+                if self.__interrupt:
                     break
                 index += self.__workers
 
     def _stream(self):
-        start_time = int(time.time())
         while len(self.__images) < self.__count:
             if not self.__imqueue.empty():
-                start_time = int(time.time())
-                yield self.__imqueue.get()
+                self.__start_time = int(time.time())
+                image_object = self.__imqueue.get()
+                if image_object.url not in self.__images:
+                    self.__images.add(image_object.url)
+                    yield image_object
             else:
-                if int(time.time()) - start_time >= self.__timeout:
+                if int(time.time()) - self.__start_time >= self.__timeout:
+                    print("Timed out")
                     break
 
         self._destroy_workers()
@@ -161,7 +177,7 @@ class Scraper:
         self.__query = query
         self.__count = count
         self.__timeout = timeout
+        self.__start_time = int(time.time())
         self._spawn_workers()
 
-    def get_stream(self):
         return self._stream
