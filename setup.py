@@ -3,7 +3,7 @@ from pathlib import Path
 
 current_dir = Path(__file__).parent
 
-VERSION = "0.4.0"
+VERSION = "0.4.1"
 DESCRIPTION = "Google Image Scraper."
 LONG_DESCRIPTION = (current_dir / "README.md").read_text()
 

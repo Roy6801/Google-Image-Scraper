@@ -236,13 +236,17 @@ class Scraper:
 
     def terminate(self) -> None:
         """
-        Terminates the scraper, committing the cache and shutting down the thread pool.
+        Terminates the scraper, committing the cache, shutting down the thread pool and quitting webdriver instances.
         """
 
         self.__cache.commit()
         self.__terminate = True
         if self.__pool is not None:
             self.__pool.shutdown()
+
+        if self.__drivers is not None:
+            for driver in self.__drivers:
+                driver.quit()
 
     def __del__(self) -> None:
         """
