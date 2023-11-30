@@ -47,22 +47,22 @@ class Cache:
         cache_dir = f"{self.__dir_path}/{lookup.query}"
 
         if os.path.exists(cache_dir) and os.listdir(cache_dir):
-            cache_file = os.listdir(cache_dir)[0]
-            self.__last_checked = f"{cache_dir}/{cache_file}"
+            timestamp_dirs = os.listdir(cache_dir)
+            max_timestamp = max(map(int, timestamp_dirs))
+            timestamp_dir = os.path.join(cache_dir, str(max_timestamp))
+            counts = os.listdir(timestamp_dir)
+            max_count = max(map(lambda x: int(x.split(".")[0]), counts))
+            cache_file = os.path.join(timestamp_dir, f"{max_count}.json")
+            self.__last_checked = cache_file
 
-            timestamp_str, extension = cache_file.split("_")
-            count_str = extension.split(".")[0]
-
-            cached_timestamp = int(timestamp_str)
-            cached_count = int(count_str)
-
-            required_count = int(lookup.count - 0.05 * lookup.count)
-
-            if cached_timestamp < int(time.time() - self.__timeout):
+            if max_timestamp < int(time.time() - self.__timeout):
                 return True
             else:
-                return required_count > cached_count
-
+                if counts:
+                    required_count = int(lookup.count - 0.05 * lookup.count)
+                    return required_count > max_count
+                else:
+                    return True
         return True
 
     def get_last_checked(self) -> str | None:
@@ -81,9 +81,14 @@ class Cache:
         """
 
         if self.__last_checked is not None and os.path.exists(self.__last_checked):
-            cache_dir = os.path.dirname(self.__last_checked)
-            for cache_file in os.listdir(cache_dir):
-                os.remove(f"{cache_dir}/{cache_file}")
+            timestamp_dir = os.path.dirname(self.__last_checked)
+            cache_dir = os.path.dirname(timestamp_dir)
+            for timestamp_dir_name in os.listdir(cache_dir):
+                timestamp_dir = os.path.join(cache_dir, timestamp_dir_name)
+                for cache_name in os.listdir(timestamp_dir):
+                    cache_file = os.path.join(timestamp_dir, cache_name)
+                    os.remove(cache_file)
+                os.rmdir(timestamp_dir)
 
     def feed(self, lookup: Lookup, response: Response) -> None:
         """
@@ -107,10 +112,12 @@ class Cache:
         for lookup in self.__responses:
             data = [response.to_dict() for response in self.__responses[lookup]]
 
-            cache_dir = f"{self.__dir_path}/{lookup.query}"
+            cache_dir = os.path.join(
+                self.__dir_path, lookup.query, str(int(time.time()))
+            )
             os.makedirs(cache_dir, exist_ok=True)
 
-            cache_path = f"{cache_dir}/{int(time.time())}_{len(data)}.json"
+            cache_path = os.path.join(cache_dir, f"{len(data)}.json")
             with open(cache_path, "w") as fw:
                 json.dump(data, fw)
 
