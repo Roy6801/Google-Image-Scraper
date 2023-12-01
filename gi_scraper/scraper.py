@@ -2,7 +2,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 
 from selenium.webdriver.chrome.service import Service
@@ -11,12 +10,12 @@ from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
 
 from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
 from urllib import parse
 from queue import Queue
-import time
 
 from .handler import Lookup, Response, QueueStream, CacheStream
-from .util import disable_safesearch, cleanup
+from .util import disable_safesearch, cleanup, scroll_range
 from .cache import Cache
 
 
@@ -70,6 +69,7 @@ class Scraper:
         self.__terminate = False
         self.__pool: ThreadPoolExecutor | None = None
         self.__cache = Cache()
+        self.__lock = Lock()
 
     def __setup(self) -> list[webdriver.Chrome]:
         """
@@ -156,19 +156,28 @@ class Scraper:
         if not disable_safesearch(driver, action, wait):
             return
 
-        for _ in range(thread_id + 1):
-            action.send_keys(Keys.END).perform()
-            time.sleep(2)
+        scroll_range(action, thread_id)
 
         image_elements = driver.find_elements(By.CLASS_NAME, "rg_i")
 
-        batch = lookup.count // self.__workers + 1
+        batch = 20
         lower_bound = thread_id * batch
         upper_bound = lower_bound + batch
 
-        for element in image_elements[lower_bound:upper_bound]:
-            if self.__current_count >= lookup.count or self.__terminate:
-                break
+        element_counter = lower_bound
+
+        while not self.__terminate:
+            if (
+                element_counter == upper_bound
+            ):  # Next batch if target count not achieved
+                lower_bound += batch * self.__workers
+                upper_bound = lower_bound + batch
+                element_counter = lower_bound
+                scroll_range(action, 3)
+                image_elements = driver.find_elements(By.CLASS_NAME, "rg_i")
+
+            thumbnail_element = image_elements[element_counter]
+            element_counter += 1
 
             img_name = None
             img_thumb = None
@@ -179,60 +188,66 @@ class Scraper:
             img_height = None
 
             try:
-                img_thumb = element.get_attribute("src")
-                img_name = element.get_attribute("alt")
+                img_thumb = thumbnail_element.get_attribute("src")
+                img_name = thumbnail_element.get_attribute("alt")
             except Exception as e:
                 # print("Image Thumbnail and Image Name", e)
                 pass
 
             try:
-                action.click(element).perform()
+                img_width = thumbnail_element.get_attribute("width")
+                img_height = thumbnail_element.get_attribute("height")
+
+                img_width, img_height = map(cleanup, [img_width, img_height])
+            except Exception as e:
+                # print("Image Dimension", e)
+                pass
+
+            try:
+                action.click(thumbnail_element).perform()
 
                 elements = wait.until(
                     EC.presence_of_all_elements_located((By.CLASS_NAME, "iPVvYb"))
                 )
 
                 img_element = elements[-1]
-
                 img_url = img_element.get_attribute("src")
-                img_dim = img_element.get_attribute("style")
-
-                img_dim = img_dim.split(" ")
-
-                img_width = cleanup(img_dim[1])
-                img_height = cleanup(img_dim[3])
-
             except Exception as e:
                 # print("Image URL", e)
                 pass
 
-            try:
-                selector = "#Sva75c > div.A8mJGd.NDuZHe.CMiV2d.OGftbe-N7Eqid-H9tDt > div.dFMRD > div.AQyBn > div.tvh9oe.BIB1wf.hVa2Fd > c-wiz > div > div > div > div:nth-child(3) > div > div.h11UTe > a.Hnk30e.indIKd"
+            if all(var is not None for var in [img_url, img_width, img_height]):
+                try:
+                    selector = "#Sva75c > div.A8mJGd.NDuZHe.CMiV2d.OGftbe-N7Eqid-H9tDt > div.dFMRD > div.AQyBn > div.tvh9oe.BIB1wf.hVa2Fd > c-wiz > div > div > div > div > div.trXfzf > div.h11UTe > a.Hnk30e.indIKd"
 
-                url_element = driver.find_element(By.CSS_SELECTOR, selector)
-                page_url = url_element.get_attribute("href")
+                    url_element = driver.find_element(By.CSS_SELECTOR, selector)
+                    page_url = url_element.get_attribute("href")
 
-                header_element = url_element.find_element(By.TAG_NAME, "h3")
-                page_name = header_element.text
+                    header_element = url_element.find_element(By.TAG_NAME, "h1")
+                    page_name = header_element.text
 
-            except Exception as e:
-                # print("Page Name and Page Link", e)
-                pass
+                except Exception as e:
+                    # print("Page Name and Page Link", e)
+                    pass
 
-            response = Response(
-                query=lookup.query,
-                name=img_name,
-                thumbnail=img_thumb,
-                image=img_url,
-                src_name=page_name,
-                src_page=page_url,
-                width=img_width,
-                height=img_height,
-            )
+                response = Response(
+                    query=lookup.query,
+                    name=img_name,
+                    thumbnail=img_thumb,
+                    image=img_url,
+                    src_name=page_name,
+                    src_page=page_url,
+                    width=img_width,
+                    height=img_height,
+                )
 
-            self.__queue.put(response)
-            self.__cache.feed(lookup, response)
-            self.__current_count += 1
+                with self.__lock:
+                    if not self.__current_count < lookup.count:
+                        break
+
+                    self.__queue.put(response)
+                    self.__cache.feed(lookup, response)
+                    self.__current_count += 1
 
     def terminate(self) -> None:
         """

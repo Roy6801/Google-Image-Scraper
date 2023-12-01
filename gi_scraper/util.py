@@ -1,8 +1,11 @@
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium import webdriver
+import time
+import re
 
 
 def query_cleaner(query: str) -> str:
@@ -31,7 +34,15 @@ def cleanup(dimension: str) -> int:
     """
 
     try:
-        return int(float(dimension.replace("px;", "")))
+        # Use regular expression to find the first occurrence of a number in the string
+        match = re.search(r"\d+", dimension)
+
+        if match:
+            # Extract the matched number and convert it to an integer
+            return int(match.group())
+        else:
+            # Return 0 if no number is found in the string
+            return 0
     except Exception as e:
         return 0
 
@@ -68,3 +79,9 @@ def disable_safesearch(
         return False
 
     return True
+
+
+def scroll_range(action: ActionChains, count: int):
+    for _ in range(count):
+        action.send_keys(Keys.END).perform()
+        time.sleep(2)

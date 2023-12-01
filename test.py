@@ -4,11 +4,9 @@ from gi_scraper import Scraper
 # The object creation has an overhead time
 # The same object can be reused to fire multiple queries
 
-sc = Scraper(headless=False)
+sc = Scraper()
 
-for query, count in {"Naruto": 20, "Gintoki": 48, "Loki": 500}.items():
-    print("Querying...", query)
-
+for query, count in {"Naruto": 200, "Gintoki": 300}.items():
     # scrape method returns a stream object
     stream = sc.scrape(query, count)
 
@@ -24,7 +22,7 @@ for query, count in {"Naruto": 20, "Gintoki": 48, "Loki": 500}.items():
 
     for response in stream.get():
         # response.to_dict returns python representable dictionary
-        print(response.image, response.to_dict())
+        print(response.width, "x", response.height, ":", response.image)
 
 # call this to terminate scraping (auto-called by destructor)
 sc.terminate()
