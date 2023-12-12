@@ -4,11 +4,12 @@ from gi_scraper import Scraper
 # The object creation has an overhead time
 # The same object can be reused to fire multiple queries
 
-sc = Scraper()
+sc = Scraper(headless=False)
 
 for query, count in {"Naruto": 200, "Gintoki": 300}.items():
     # scrape method returns a stream object
     stream = sc.scrape(query, count)
+    i = 0
 
     # stream.get method yields Response object with following attributes
     # - query (str): The query associated with the response.
@@ -21,8 +22,12 @@ for query, count in {"Naruto": 200, "Gintoki": 300}.items():
     # - height (int): The height attribute of the response.
 
     for response in stream.get():
+        if i == 20:
+            sc.terminate_query()  # Terminate current query midway
+            break
         # response.to_dict returns python representable dictionary
         print(response.width, "x", response.height, ":", response.image)
+        i += 1
 
 # call this to terminate scraping (auto-called by destructor)
 sc.terminate()
