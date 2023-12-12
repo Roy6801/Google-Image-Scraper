@@ -43,8 +43,11 @@ class Scraper:
     - scrape(query: str, count: int) -> CacheStream | QueueStream:
         Scrapes image search results for a given query and count.
 
+    - terminate_query() -> None:
+        Terminates the current query scraping, committing the cache and shutting down the thread pool.
+
     - terminate() -> None:
-        Terminates the scraper, committing the cache and shutting down the thread pool.
+        Terminates the scraper, committing the cache, shutting down the thread pool and exiting all webdrivers.
 
     - __del__() -> None:
         Destructor to ensure proper termination of the scraper.
@@ -60,7 +63,7 @@ class Scraper:
 
     def __init__(self, workers: int = 4, headless: bool = True) -> None:
         self.__workers = workers
-        self.__queue = Queue()
+        self.__queue: Queue
         self.__headless = headless
         self.__drivers = self.__setup()
         self.__url_frame = "https://www.google.com/search?{}&source=lnms&tbm=isch&sa=X&ved=2ahUKEwjR5qK3rcbxAhXYF3IKHYiBDf8Q_AUoAXoECAEQAw&biw=1291&bih=590"
@@ -106,6 +109,8 @@ class Scraper:
         - CacheStream | QueueStream: A stream of scraped responses.
         """
 
+        self.__terminate = False
+
         query = query.lower()
         self.__cache.commit()
         lookup = Lookup(query, count)
@@ -116,6 +121,7 @@ class Scraper:
             stream = CacheStream(responses=responses[:last_index])
         else:
             self.__cache.erase_last_checked()
+            self.__queue = Queue()
             stream = QueueStream(self.__queue)
             self.__current_url = self.__url_frame.format(parse.urlencode({"q": query}))
             self.__current_count = 0
@@ -249,15 +255,25 @@ class Scraper:
                     self.__cache.feed(lookup, response)
                     self.__current_count += 1
 
+    def terminate_query(self) -> None:
+        """
+        Terminates the current query being scraped and syncs all the worker threads.
+        """
+
+        self.__terminate = True
+
+        if self.__pool is not None:
+            self.__pool.shutdown()
+        self.__pool = None
+
+        self.__cache.commit()
+
     def terminate(self) -> None:
         """
         Terminates the scraper, committing the cache, shutting down the thread pool and quitting webdriver instances.
         """
 
-        self.__cache.commit()
-        self.__terminate = True
-        if self.__pool is not None:
-            self.__pool.shutdown()
+        self.terminate_query()
 
         if self.__drivers is not None:
             for driver in self.__drivers:
