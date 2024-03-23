@@ -84,4 +84,4 @@ def disable_safesearch(
 def scroll_range(action: ActionChains, count: int):
     for _ in range(count):
         action.send_keys(Keys.END).perform()
-        time.sleep(2)
+        time.sleep(0.5)
