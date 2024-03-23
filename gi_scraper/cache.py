@@ -10,10 +10,10 @@ class Cache:
 
     Parameters:
     - dir_path (str): The directory path for storing cache files. Default is the current directory.
-    - timeout (int): The timeout duration for considering cache entries stale, in seconds. Default is one week (604800 seconds).
+    - timeout (int): The timeout duration for considering cache entries stale, in seconds. Set to -1 for turning off Cache timeout. Default timeout is one hour (3600 seconds).
 
     Attributes:
-    - __dir_path (str): The directory path for storing cache files.
+    - __cache_dir (str): The directory path for storing cache files.
     - __timeout (int): The timeout duration for considering cache entries stale, in seconds.
     - __last_checked (str | None): The path of the last checked cache file or None if not checked.
     - __responses (dict[Lookup, list[Response]]): A dictionary to store responses based on lookup queries.
@@ -27,8 +27,8 @@ class Cache:
     - fetch(cache_path: str) -> list[ResponseDict]: Reads and returns responses from a cache file.
     """
 
-    def __init__(self, dir_path: str = ".", timeout: int = 604800) -> None:
-        self.__dir_path = f"{dir_path}/cache"
+    def __init__(self, dir_path: str = ".", timeout: int = 3600) -> None:
+        self.__cache_dir = os.path.join(dir_path, "cache")
         self.__timeout = timeout
         self.__last_checked: str | None = None
         self.__responses: dict[Lookup, list[Response]] = {}
@@ -44,25 +44,42 @@ class Cache:
         - bool: True if the cache entry is stale, False otherwise.
         """
 
-        cache_dir = f"{self.__dir_path}/{lookup.query}"
+        lookup_dir = os.path.join(self.__cache_dir, lookup.query)
 
-        if os.path.exists(cache_dir) and os.listdir(cache_dir):
-            timestamp_dirs = os.listdir(cache_dir)
-            max_timestamp = max(map(int, timestamp_dirs))
-            timestamp_dir = os.path.join(cache_dir, str(max_timestamp))
-            counts = os.listdir(timestamp_dir)
-            max_count = max(map(lambda x: int(x.split(".")[0]), counts))
-            cache_file = os.path.join(timestamp_dir, f"{max_count}.json")
-            self.__last_checked = cache_file
+        if not (os.path.exists(lookup_dir) and os.listdir(lookup_dir)):
+            return True
 
-            if max_timestamp < int(time.time() - self.__timeout):
-                return True
-            else:
-                if counts:
-                    required_count = int(lookup.count - 0.05 * lookup.count)
-                    return required_count > max_count
-                else:
-                    return True
+        timestamp_dirs = os.listdir(lookup_dir)
+        max_timestamp = max(map(int, timestamp_dirs))
+
+        timestamp_dir_name = (
+            str(self.__timeout) if self.__timeout == -1 else str(max_timestamp)
+        )
+
+        timestamp_dir = os.path.join(
+            lookup_dir,
+            timestamp_dir_name,
+        )
+
+        if not os.path.exists(timestamp_dir):
+            return True
+
+        counts = os.listdir(timestamp_dir)
+        if len(counts) == 0:
+            return True
+
+        max_count = max(map(lambda x: int(x.split(".")[0]), counts))
+
+        cache_file = os.path.join(timestamp_dir, f"{max_count}.json")
+        self.__last_checked = cache_file
+
+        if self.__timeout != -1 and max_timestamp < int(time.time() - self.__timeout):
+            return True
+
+        if counts:
+            required_count = int(lookup.count - 0.05 * lookup.count)
+            return required_count > max_count
+
         return True
 
     def get_last_checked(self) -> str | None:
@@ -82,9 +99,9 @@ class Cache:
 
         if self.__last_checked is not None and os.path.exists(self.__last_checked):
             timestamp_dir = os.path.dirname(self.__last_checked)
-            cache_dir = os.path.dirname(timestamp_dir)
-            for timestamp_dir_name in os.listdir(cache_dir):
-                timestamp_dir = os.path.join(cache_dir, timestamp_dir_name)
+            lookup_dir = os.path.dirname(timestamp_dir)
+            for timestamp_dir_name in os.listdir(lookup_dir):
+                timestamp_dir = os.path.join(lookup_dir, timestamp_dir_name)
                 for cache_name in os.listdir(timestamp_dir):
                     cache_file = os.path.join(timestamp_dir, cache_name)
                     os.remove(cache_file)
@@ -112,12 +129,17 @@ class Cache:
         for lookup in self.__responses:
             data = [response.to_dict() for response in self.__responses[lookup]]
 
-            cache_dir = os.path.join(
-                self.__dir_path, lookup.query, str(int(time.time()))
+            timestamp_dir_name = (
+                str(self.__timeout) if self.__timeout == -1 else str(int(time.time()))
             )
-            os.makedirs(cache_dir, exist_ok=True)
 
-            cache_path = os.path.join(cache_dir, f"{len(data)}.json")
+            timestamp_dir = os.path.join(
+                self.__cache_dir, lookup.query, timestamp_dir_name
+            )
+
+            os.makedirs(timestamp_dir, exist_ok=True)
+
+            cache_path = os.path.join(timestamp_dir, f"{len(data)}.json")
             with open(cache_path, "w") as fw:
                 json.dump(data, fw)
 
