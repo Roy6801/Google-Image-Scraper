@@ -3,7 +3,7 @@ from pathlib import Path
 
 current_dir = Path(__file__).parent
 
-VERSION = "0.4.3"
+VERSION = "0.4.4"
 DESCRIPTION = "Google Image Scraper."
 LONG_DESCRIPTION = (current_dir / "README.md").read_text()
 
@@ -29,11 +29,19 @@ setup(
         "image scraper",
         "image API",
         "API",
+        "automation",
+        "data extraction",
+        "scraping tool",
+        "image downloader",
+        "web automation",
+        "scraping framework",
+        "data scraping",
+        "image search",
+        "image retrieval",
     ],
     classifiers=[
-        "Development Status :: 1 - Planning",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
-        "Programming Language :: Python :: 3",
-        "Operating System :: Microsoft :: Windows",
+        "Programming Language :: Python :: 3.10",
     ],
 )
