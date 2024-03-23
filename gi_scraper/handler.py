@@ -145,8 +145,9 @@ class QueueStream:
             if not self.__queue.empty():
                 timeout = self.__timeout
                 item = self.__queue.get()
-                if isinstance(item, Response):
-                    yield item
+                if item is None:
+                    break
+                yield item
                 last_fetch = time.time()
                 wait_time = 0
             else:
