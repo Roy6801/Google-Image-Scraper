@@ -26,6 +26,7 @@ class Scraper:
     Parameters:
     - workers (int): The number of worker threads to use for scraping. Default is 4.
     - headless (bool): Whether to run the Chrome browser in headless mode. Default is True.
+    - cache (Cache): Cache instance with a custom path and timeout. If not specified, the default settings of the Cache class are used.
 
     Attributes:
     - __workers (int): The number of worker threads to use for scraping.
@@ -58,7 +59,7 @@ class Scraper:
 
     """
 
-    def __init__(self, workers: int = 4, headless: bool = True) -> None:
+    def __init__(self, workers: int = 4, headless: bool = True, cache=Cache()) -> None:
         self.__workers = workers
         self.__queue = Queue()
         self.__headless = headless
@@ -68,7 +69,7 @@ class Scraper:
         self.__current_count = 0
         self.__terminate = False
         self.__pool: ThreadPoolExecutor | None = None
-        self.__cache = Cache()
+        self.__cache = cache
         self.__lock = Lock()
 
     def __setup(self) -> list[webdriver.Chrome]:
@@ -147,6 +148,7 @@ class Scraper:
         """
 
         driver.get(self.__current_url)
+        driver.maximize_window()
 
         delay = 3  # seconds
 
@@ -156,7 +158,7 @@ class Scraper:
         if not disable_safesearch(driver, action, wait):
             return
 
-        scroll_range(action, thread_id)
+        scroll_range(action, 5)
 
         image_elements = driver.find_elements(By.CLASS_NAME, "rg_i")
 
@@ -173,8 +175,6 @@ class Scraper:
                 lower_bound += batch * self.__workers
                 upper_bound = lower_bound + batch
                 element_counter = lower_bound
-                scroll_range(action, 3)
-                image_elements = driver.find_elements(By.CLASS_NAME, "rg_i")
 
             thumbnail_element = image_elements[element_counter]
             element_counter += 1
@@ -191,7 +191,7 @@ class Scraper:
                 img_thumb = thumbnail_element.get_attribute("src")
                 img_name = thumbnail_element.get_attribute("alt")
             except Exception as e:
-                # print("Image Thumbnail and Image Name", e)
+                # print(f"T_{thread_id}", ":", "Image Thumbnail and Image Name", e)
                 pass
 
             try:
@@ -200,7 +200,7 @@ class Scraper:
 
                 img_width, img_height = map(cleanup, [img_width, img_height])
             except Exception as e:
-                # print("Image Dimension", e)
+                # print(f"T_{thread_id}", ":", "Image Dimension", e)
                 pass
 
             try:
@@ -213,7 +213,7 @@ class Scraper:
                 img_element = elements[-1]
                 img_url = img_element.get_attribute("src")
             except Exception as e:
-                # print("Image URL", e)
+                # print(f"T_{thread_id}", ":", "Image URL", e)
                 pass
 
             if all(var is not None for var in [img_url, img_width, img_height]):
@@ -227,7 +227,7 @@ class Scraper:
                     page_name = header_element.text
 
                 except Exception as e:
-                    # print("Page Name and Page Link", e)
+                    # print(f"T_{thread_id}", ":", "Page Name and Page Link", e)
                     pass
 
                 response = Response(
@@ -243,6 +243,8 @@ class Scraper:
 
                 with self.__lock:
                     if not self.__current_count < lookup.count:
+                        # Close stream immediately on completing count
+                        self.__queue.put(None)
                         break
 
                     self.__queue.put(response)
