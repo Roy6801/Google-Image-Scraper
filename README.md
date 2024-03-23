@@ -18,13 +18,23 @@ This module is based on web-scraping technology and uses Google Images to provid
 # import Scraper class
 from gi_scraper import Scraper
 
+
+# Pass a Cache instance with a custom directory path and timeout
+# Set cache timeout to -1 for caching indefinitely
+
+"""
+from gi_scraper import Cache
+
+cache = Cache(dir_path="gi_cache", timeout=-1)
+sc = Scraper(workers=8, headless=False, cache=cache)
+"""
+
 # The object creation has an overhead time
 # The same object can be reused to fire multiple queries
+sc = Scraper()
 
-sc = Scraper(headless=False)
-
-for query, count in {"Naruto": 20, "Gintoki": 50, "Loki": 500}.items():
-    print("Querying...", query)
+for query, count in {"Naruto": 20, "Gintoki": 30}.items():
+    print("Scraping...", query, ":", count)
 
     # scrape method returns a stream object
     stream = sc.scrape(query, count)
@@ -40,8 +50,9 @@ for query, count in {"Naruto": 20, "Gintoki": 50, "Loki": 500}.items():
     # - height (int): The height attribute of the response.
 
     for response in stream.get():
+
         # response.to_dict returns python representable dictionary
-        print(response.image, response.to_dict())
+        print(response.width, "x", response.height, ":", response.image)
 
 # call this to terminate scraping (auto-called by destructor)
 sc.terminate()
