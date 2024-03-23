@@ -4,10 +4,6 @@
 
 This module is based on web-scraping technology and uses Google Images to provide a Streamable Image API.
 
-#### Supported Systems
-
-- **Windows**
-
 ### Supported Browsers
 
 - **Chrome**
@@ -31,7 +27,7 @@ sc = Scraper(workers=8, headless=False, cache=cache)
 
 # The object creation has an overhead time
 # The same object can be reused to fire multiple queries
-sc = Scraper()
+sc = Scraper(headless=False)
 
 for query, count in {"Naruto": 20, "Gintoki": 30}.items():
     print("Scraping...", query, ":", count)
@@ -49,10 +45,13 @@ for query, count in {"Naruto": 20, "Gintoki": 30}.items():
     # - width (int): The width attribute of the response.
     # - height (int): The height attribute of the response.
 
-    for response in stream.get():
-
+    for index, response in enumerate(stream.get()):
+        if index == 10:
+            sc.terminate_query()  # Terminate current query midway
+            break
         # response.to_dict returns python representable dictionary
         print(response.width, "x", response.height, ":", response.image)
+
 
 # call this to terminate scraping (auto-called by destructor)
 sc.terminate()
