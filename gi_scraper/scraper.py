@@ -14,8 +14,9 @@ from threading import Lock
 from urllib import parse
 from queue import Queue
 
-from .handler import Lookup, Response, QueueStream, CacheStream
 from .util import disable_safesearch, cleanup, scroll_range
+from .stream import QueueStream, CacheStream
+from .handler import Lookup, Response
 from .cache import Cache
 
 
@@ -117,13 +118,10 @@ class Scraper:
         lookup = Lookup(query, count)
 
         if not self.__cache.is_stale(lookup=lookup):
-            responses = self.__cache.fetch(self.__cache.get_last_checked())
-            last_index = min(len(responses), lookup.count)
-            stream = CacheStream(responses=responses[:last_index])
+            stream = CacheStream(self.__cache, lookup)
         else:
-            self.__cache.erase_last_checked()
             self.__queue = Queue()
-            stream = QueueStream(self.__queue)
+            stream = QueueStream(self.__queue, self.__cache)
             self.__current_url = self.__url_frame.format(parse.urlencode({"q": query}))
             self.__current_count = 0
 
